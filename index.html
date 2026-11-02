@@ -54,7 +54,7 @@ render();
 </script>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js';
 
 const firebaseConfig = {
@@ -69,6 +69,8 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+// Keep the Google session between page reloads.
+await setPersistence(auth, browserLocalPersistence);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 const loginButton = document.getElementById('googleLogin');
@@ -91,7 +93,10 @@ function snapshotState(value) {
 loginButton?.addEventListener('click', async () => {
   try {
     showStatus('Opening Google sign-in…');
-    await signInWithRedirect(auth, provider);
+    const result = await signInWithPopup(auth, provider);
+    if (result.user) {
+      showStatus('Signed in · loading progress…');
+    }
   } catch (error) {
     console.error('Google sign-in failed:', error);
     showStatus('Sign-in failed. Check Firebase settings.');
@@ -128,11 +133,6 @@ window.sswCloudSave = (currentState) => {
       if (activeUser?.uid === userAtSave.uid) showStatus('Cloud sync error');
     });
 };
-
-getRedirectResult(auth).catch((error) => {
-  console.error('Google redirect result:', error);
-  showStatus('Sign-in error. Please try again.');
-});
 
 onAuthStateChanged(auth, async (user) => {
   activeUser = user || null;
